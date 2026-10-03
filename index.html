@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Resizer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  header span { font-size: 1.6rem; }
+  .container { max-width: 960px; margin: 32px auto; padding: 0 20px; }
+  .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; color: #1a1a2e; }
+  .mode-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .mode-tab { padding: 8px 18px; border-radius: 8px; border: 2px solid #e0e0e0; background: white; cursor: pointer; font-size: .9rem; font-weight: 500; transition: all .15s; }
+  .mode-tab.active { border-color: #4f46e5; background: #4f46e5; color: white; }
+  .mode-tab:hover:not(.active) { border-color: #4f46e5; color: #4f46e5; }
+  .mode-panel { display: none; }
+  .mode-panel.active { display: block; }
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; }
+  .preset-btn { padding: 8px 16px; border-radius: 8px; border: 2px solid #e0e0e0; background: white; cursor: pointer; font-size: .85rem; font-weight: 500; transition: all .15s; }
+  .preset-btn.active { border-color: #4f46e5; background: #ede9fe; color: #4f46e5; }
+  .preset-btn:hover:not(.active) { border-color: #a5b4fc; }
+  .input-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+  .input-row input[type=number] { width: 110px; padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: .95rem; transition: border-color .15s; }
+  .input-row input[type=number]:focus { outline: none; border-color: #4f46e5; }
+  .input-row label { font-size: .9rem; color: #555; }
+  .slider-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+  .slider-row input[type=range] { flex: 1; accent-color: #4f46e5; }
+  .slider-val { min-width: 44px; text-align: center; font-weight: 600; color: #4f46e5; }
+  .images-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .btn-sm { padding: 6px 14px; border-radius: 6px; border: 1.5px solid #4f46e5; background: white; color: #4f46e5; font-size: .85rem; cursor: pointer; font-weight: 500; transition: all .15s; }
+  .btn-sm:hover { background: #4f46e5; color: white; }
+  .image-list { display: grid; gap: 8px; }
+  .image-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 8px; border: 1.5px solid #e0e0e0; cursor: pointer; transition: border-color .15s; }
+  .image-item.selected { border-color: #4f46e5; background: #f5f3ff; }
+  .image-item input[type=checkbox] { accent-color: #4f46e5; width: 16px; height: 16px; cursor: pointer; }
+  .image-item .name { flex: 1; font-size: .9rem; font-weight: 500; }
+  .image-item .meta { font-size: .8rem; color: #888; }
+  .empty-state { text-align: center; padding: 32px; color: #aaa; font-size: .95rem; }
+  .btn-primary { width: 100%; padding: 13px; border-radius: 10px; border: none; background: #4f46e5; color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background .15s; }
+  .btn-primary:hover { background: #4338ca; }
+  .btn-primary:disabled { background: #a5b4fc; cursor: not-allowed; }
+  .results { margin-top: 20px; display: grid; gap: 8px; }
+  .result-item { padding: 12px 16px; border-radius: 8px; font-size: .875rem; }
+  .result-item.ok { background: #f0fdf4; border: 1.5px solid #86efac; color: #15803d; }
+  .result-item.err { background: #fef2f2; border: 1.5px solid #fca5a5; color: #b91c1c; }
+  .result-item .r-name { font-weight: 600; }
+  .result-item .r-detail { margin-top: 2px; opacity: .85; }
+  .output-note { margin-top: 12px; padding: 10px 14px; border-radius: 8px; background: #eff6ff; border: 1.5px solid #bfdbfe; font-size: .85rem; color: #1d4ed8; }
+  .loading { display: flex; align-items: center; gap: 10px; color: #666; padding: 12px 0; }
+  .spinner { width: 20px; height: 20px; border: 3px solid #e0e0e0; border-top-color: #4f46e5; border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .refresh-btn { background: none; border: none; cursor: pointer; font-size: 1.1rem; opacity: .6; transition: opacity .15s; }
+  .refresh-btn:hover { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <span>🖼️</span>
+  <h1>Image Resizer</h1>
+</header>
+
+<div class="container">
+  <!-- Resize Options -->
+  <div class="card">
+    <h2>Resize Options</h2>
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="percent">By Percentage</button>
+      <button class="mode-tab" data-mode="width">By Width</button>
+      <button class="mode-tab" data-mode="height">By Height</button>
+      <button class="mode-tab" data-mode="preset">Preset Size</button>
+    </div>
+
+    <!-- Percent -->
+    <div class="mode-panel active" id="panel-percent">
+      <div class="slider-row">
+        <input type="range" id="pct-slider" min="5" max="100" value="50">
+        <span class="slider-val" id="pct-val">50%</span>
+      </div>
+      <div style="margin-top:8px; font-size:.85rem; color:#888;">Scale images to a percentage of their original size</div>
+    </div>
+
+    <!-- Width -->
+    <div class="mode-panel" id="panel-width">
+      <div class="input-row">
+        <input type="number" id="width-val" value="800" min="1" max="20000">
+        <label>pixels wide (height scales proportionally)</label>
+      </div>
+    </div>
+
+    <!-- Height -->
+    <div class="mode-panel" id="panel-height">
+      <div class="input-row">
+        <input type="number" id="height-val" value="600" min="1" max="20000">
+        <label>pixels tall (width scales proportionally)</label>
+      </div>
+    </div>
+
+    <!-- Preset -->
+    <div class="mode-panel" id="panel-preset">
+      <div class="presets">
+        <button class="preset-btn active" data-preset="1920x1080">1920×1080 (FHD)</button>
+        <button class="preset-btn" data-preset="1280x720">1280×720 (HD)</button>
+        <button class="preset-btn" data-preset="854x480">854×480 (SD)</button>
+        <button class="preset-btn" data-preset="3840x2160">3840×2160 (4K)</button>
+        <button class="preset-btn" data-preset="1080x1080">1080×1080 (Square)</button>
+        <button class="preset-btn" data-preset="800x600">800×600</button>
+        <button class="preset-btn" data-preset="640x480">640×480</button>
+        <button class="preset-btn" data-preset="320x240">320×240</button>
+      </div>
+      <div style="margin-top:10px; font-size:.85rem; color:#888;">Images are fit within the preset dimensions, preserving aspect ratio</div>
+    </div>
+
+    <!-- Quality -->
+    <div style="margin-top:20px; padding-top:16px; border-top:1px solid #f0f0f0;">
+      <label style="font-size:.9rem; font-weight:600; display:block; margin-bottom:8px;">JPEG/WebP Quality</label>
+      <div class="slider-row">
+        <input type="range" id="quality-slider" min="10" max="100" value="85">
+        <span class="slider-val" id="quality-val">85</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Folder Picker -->
+  <div class="card">
+    <h2>Source Folder</h2>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+      <input type="text" id="folder-input" placeholder="/path/to/your/images" style="flex:1;padding:9px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:.9rem;font-family:monospace;transition:border-color .15s;" onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#e0e0e0'">
+      <button class="btn-sm" id="browse-folder-btn" style="white-space:nowrap;">Browse…</button>
+      <button class="btn-sm" id="set-folder-btn" style="white-space:nowrap;">Set Folder</button>
+    </div>
+    <div id="folder-status" style="margin-top:8px;font-size:.82rem;color:#888;"></div>
+  </div>
+
+  <!-- File Selection -->
+  <div class="card">
+    <div class="images-header">
+      <h2>Images in folder</h2>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn-sm" id="select-all-btn">Select All</button>
+        <button class="refresh-btn" id="refresh-btn" title="Refresh">↻</button>
+      </div>
+    </div>
+    <div id="image-list">
+      <div class="loading"><div class="spinner"></div> Loading images…</div>
+    </div>
+  </div>
+
+  <!-- Action -->
+  <div class="card">
+    <button class="btn-primary" id="resize-btn">Resize Images</button>
+    <div id="results-area"></div>
+  </div>
+</div>
+
+<script>
+let images = [];
+let selectedMode = "percent";
+let selectedPreset = "1920x1080";
+let allSelected = false;
+
+// Mode tabs
+document.querySelectorAll(".mode-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".mode-tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".mode-panel").forEach(p => p.classList.remove("active"));
+    tab.classList.add("active");
+    selectedMode = tab.dataset.mode;
+    document.getElementById(`panel-${selectedMode}`).classList.add("active");
+  });
+});
+
+// Percent slider
+const pctSlider = document.getElementById("pct-slider");
+const pctVal = document.getElementById("pct-val");
+pctSlider.addEventListener("input", () => pctVal.textContent = pctSlider.value + "%");
+
+// Quality slider
+const qualSlider = document.getElementById("quality-slider");
+const qualVal = document.getElementById("quality-val");
+qualSlider.addEventListener("input", () => qualVal.textContent = qualSlider.value);
+
+// Preset buttons
+document.querySelectorAll(".preset-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    selectedPreset = btn.dataset.preset;
+  });
+});
+
+// Folder picker
+async function loadCurrentFolder() {
+  const res = await fetch("/get-folder");
+  const data = await res.json();
+  document.getElementById("folder-input").value = data.folder;
+  document.getElementById("folder-status").textContent = `Current folder: ${data.folder}`;
+}
+
+document.getElementById("browse-folder-btn").addEventListener("click", async () => {
+  const statusEl = document.getElementById("folder-status");
+  const btn = document.getElementById("browse-folder-btn");
+  btn.textContent = "Opening…";
+  btn.disabled = true;
+  try {
+    const res = await fetch("/browse-folder");
+    const data = await res.json();
+    if (!data.cancelled && data.path) {
+      document.getElementById("folder-input").value = data.path;
+      document.getElementById("set-folder-btn").click();
+    } else {
+      statusEl.style.color = "#888";
+      statusEl.textContent = "Folder selection cancelled.";
+    }
+  } catch (e) {
+    statusEl.style.color = "#b91c1c";
+    statusEl.textContent = "Could not open folder picker.";
+  }
+  btn.textContent = "Browse…";
+  btn.disabled = false;
+});
+
+document.getElementById("set-folder-btn").addEventListener("click", async () => {
+  const path = document.getElementById("folder-input").value.trim();
+  if (!path) return;
+  const statusEl = document.getElementById("folder-status");
+  statusEl.textContent = "Setting folder…";
+  try {
+    const res = await fetch("/set-folder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path })
+    });
+    const data = await res.json();
+    if (data.error) {
+      statusEl.style.color = "#b91c1c";
+      statusEl.textContent = "Error: " + data.error;
+    } else {
+      statusEl.style.color = "#15803d";
+      statusEl.textContent = "Folder set: " + data.folder;
+      loadImages();
+    }
+  } catch (e) {
+    statusEl.style.color = "#b91c1c";
+    statusEl.textContent = "Could not connect to server.";
+  }
+});
+
+document.getElementById("folder-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("set-folder-btn").click();
+});
+
+// Load images
+async function loadImages() {
+  document.getElementById("image-list").innerHTML = '<div class="loading"><div class="spinner"></div> Loading images…</div>';
+  try {
+    const res = await fetch("/list-images");
+    images = await res.json();
+    renderList();
+  } catch (e) {
+    document.getElementById("image-list").innerHTML = '<div class="empty-state">Could not connect to server.</div>';
+  }
+}
+
+function renderList() {
+  const el = document.getElementById("image-list");
+  if (!images.length) {
+    el.innerHTML = '<div class="empty-state">No images found in <strong>files/</strong> folder. Add some images and refresh.</div>';
+    return;
+  }
+  el.innerHTML = images.map((img, i) => `
+    <div class="image-item" data-i="${i}">
+      <input type="checkbox" id="cb-${i}" data-i="${i}">
+      <label class="name" for="cb-${i}">${img.name}</label>
+      <span class="meta">${img.width}×${img.height} &nbsp;·&nbsp; ${img.size_kb} KB</span>
+    </div>
+  `).join("");
+
+  el.querySelectorAll(".image-item").forEach(item => {
+    item.addEventListener("click", e => {
+      if (e.target.tagName === "INPUT") return;
+      const cb = item.querySelector("input[type=checkbox]");
+      cb.checked = !cb.checked;
+      item.classList.toggle("selected", cb.checked);
+    });
+    item.querySelector("input[type=checkbox]").addEventListener("change", function() {
+      item.classList.toggle("selected", this.checked);
+    });
+  });
+}
+
+// Select all
+document.getElementById("select-all-btn").addEventListener("click", () => {
+  allSelected = !allSelected;
+  document.getElementById("select-all-btn").textContent = allSelected ? "Deselect All" : "Select All";
+  document.querySelectorAll("#image-list .image-item").forEach(item => {
+    const cb = item.querySelector("input[type=checkbox]");
+    cb.checked = allSelected;
+    item.classList.toggle("selected", allSelected);
+  });
+});
+
+document.getElementById("refresh-btn").addEventListener("click", loadImages);
+
+loadCurrentFolder();
+loadImages();
+
+// Resize
+document.getElementById("resize-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("resize-btn");
+  const area = document.getElementById("results-area");
+
+  const checked = [...document.querySelectorAll("#image-list input[type=checkbox]:checked")];
+  const selectedFiles = checked.map(cb => images[parseInt(cb.dataset.i)].name);
+
+  let value;
+  if (selectedMode === "percent") value = parseInt(pctSlider.value);
+  else if (selectedMode === "width") value = parseInt(document.getElementById("width-val").value);
+  else if (selectedMode === "height") value = parseInt(document.getElementById("height-val").value);
+  else value = selectedPreset;
+
+  const payload = {
+    mode: selectedMode,
+    value,
+    quality: parseInt(qualSlider.value),
+    files: selectedFiles
+  };
+
+  btn.disabled = true;
+  btn.textContent = "Resizing…";
+  area.innerHTML = '<div class="loading" style="margin-top:16px"><div class="spinner"></div> Processing images…</div>';
+
+  try {
+    const res = await fetch("/resize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    const items = data.results.map(r => {
+      if (r.ok) {
+        return `<div class="result-item ok">
+          <div class="r-name">✓ ${r.file}</div>
+          <div class="r-detail">${r.orig} → ${r.new} &nbsp;·&nbsp; ${r.out_kb} KB &nbsp;·&nbsp; saved as <strong>${r.out}</strong></div>
+        </div>`;
+      } else {
+        return `<div class="result-item err">
+          <div class="r-name">✗ ${r.file}</div>
+          <div class="r-detail">${r.error}</div>
+        </div>`;
+      }
+    }).join("");
+
+    area.innerHTML = `
+      <div class="results">${items}</div>
+      <div class="output-note">📁 Resized files saved to: <strong>${data.output_dir}</strong></div>
+    `;
+  } catch (e) {
+    area.innerHTML = '<div class="result-item err"><div class="r-name">Error connecting to server.</div></div>';
+  }
+
+  btn.disabled = false;
+  btn.textContent = "Resize Images";
+});
+
+loadImages();
+</script>
+</body>
+</html>
